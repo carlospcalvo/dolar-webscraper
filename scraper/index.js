@@ -2,15 +2,18 @@ const puppeteer = require('puppeteer');
 const axios = require('axios');
 require('dotenv').config();
 
+console.log('Executing scraper...');
+
 ( async () => {
+    
     //dolar blue, MEP, CCL, Solidario
     let dolarhoy_url = 'https://dolarhoy.com/';
     //dolar BNA, divisa
     let bna_url = 'https://bna.com.ar/Personas';
     // Euro blue, oficial
-    let euro_blue_url = 'https://www.euroblue.com.ar/';
+    let euro_blue_url = 'https://www.paralelohoy.com.ar/p/cotizacion-euro-hoy-argentina.html';//'https://www.euroblue.com.ar/';
 
-    let browser = await puppeteer.launch({ headless: false });
+    let browser = await puppeteer.launch({ headless: true, args: ['--disable-features=AudioServiceOutOfProcess']});
 
     // >> DOLAR BLUE / SOLIDARIO / MEP / CCL - DolarHoy 
 
@@ -71,20 +74,20 @@ require('dotenv').config();
         ]
     });
 
-    // >> EURO - euroblue.com.ar 
+    // >> EURO - www.paralelohoy.com.ar
  
     let page_euro_blue = await browser.newPage();
 
     await page_euro_blue.goto(euro_blue_url, { timeout: 0 });
 
-    let data_euro = await page_euro_blue.waitForSelector('#content > div.entry-content > div > div.elementor.elementor-9415 > div > div > section.elementor-section.elementor-top-section.elementor-element.elementor-element-26d46d3a.elementor-section-boxed.elementor-section-height-default.elementor-section-height-default > div > div > div.elementor-column.elementor-col-50.elementor-top-column.elementor-element.elementor-element-1a0238f3 > div > div > div > div > div > table:nth-child(4) > tbody > tr:nth-child(2) > td:nth-child(2)')
+    let data_euro = await page_euro_blue.waitForSelector('#post-body-6393886769487132489 > div > div:nth-child(1) > center > table > tbody:nth-child(2) > tr:nth-child(1) > td:nth-child(3) > b > span')
         .then(() =>  page_euro_blue.evaluate(() => {
-            let valor_oficial = document.querySelector('#content > div.entry-content > div > div.elementor.elementor-9415 > div > div > section.elementor-section.elementor-top-section.elementor-element.elementor-element-26d46d3a.elementor-section-boxed.elementor-section-height-default.elementor-section-height-default > div > div > div.elementor-column.elementor-col-50.elementor-top-column.elementor-element.elementor-element-1a0238f3 > div > div > div > div > div > table:nth-child(4) > tbody > tr:nth-child(2) > td:nth-child(2)').innerText.substring(1);
+            let valor_oficial = document.querySelector('#post-body-6393886769487132489 > div > div:nth-child(1) > center > table > tbody:nth-child(2) > tr:nth-child(1) > td:nth-child(3) > b > span').innerText.substring(1);
             return [
                 {
                     id: "euro_blue",
                     name: 'Euro Blue',
-                    value: document.querySelector('#content > div.entry-content > div > div.elementor.elementor-9415 > div > div > section.elementor-section.elementor-top-section.elementor-element.elementor-element-26d46d3a.elementor-section-boxed.elementor-section-height-default.elementor-section-height-default > div > div > div.elementor-column.elementor-col-50.elementor-top-column.elementor-element.elementor-element-1a0238f3 > div > div > div > div > div > table:nth-child(2) > tbody > tr:nth-child(2) > td:nth-child(2) > p').innerText,
+                    value: document.querySelector('#post-body-6393886769487132489 > div > div:nth-child(1) > center > table > tbody:nth-child(2) > tr:nth-child(2) > td:nth-child(3) > b > span').innerText.substring(1),
                     currency: "ARS"
                 },
                 {
@@ -108,19 +111,22 @@ require('dotenv').config();
     await browser.close();    
 
     //Send data to our API
-    //Yes, I know I should be sending the whole array in a single request...
+    console.log('Sending: ', data);
 
-    data.forEach(rate => {
+    try {
         await axios({
-            url: process.env.API_URL,
+            url: `${process.env.API_URL}`,
             method: 'POST',
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `bearer ${process.env.API_TOKEN}`,
                 "Access-Control-Allow-Origin": "*"
             },
-            data: JSON.stringify(rate)
-        })
-    });
+            data: { data: JSON.stringify(data) }
+        });
 
+        console.log('Data sent succesfully!');
+    } catch (error) {
+        console.error('Error sending data: ', error.message);   
+    }
 })();
