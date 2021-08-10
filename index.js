@@ -128,5 +128,7 @@ console.log('Executing scraper...');
         console.log('Data sent succesfully!');
     } catch (error) {
         console.error('Error sending data: ', error.message);   
+    } finally {
+        process.exit();
     }
 })();
